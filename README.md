@@ -72,7 +72,7 @@ FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '"' SKIP_HEADER = 1);
 
 V tejto fáze boli dáta zo staging tabuliek vyčistené, transformované a obohatené. Hlavným cieľom bolo pripraviť dimenzie a faktovú tabuľku, ktoré umožnia jednoduchú a efektívnu analýzu.
 
-### Vytváranie dimenzií**
+### Vytváranie dimenzií
 
 `dim_products` bola vytvorená spojením tabuliek `products_staging`, `categories_s-+taging` a `suppliers_staging`, čo umožnilo denormalizáciu dát. Tabuľka obsahuje názvy produktov, kategórie, mená dodávateľov a ich lokality (krajina, mesto). Typ dimenzie: **SCD1**. Tento typ bol zvolený, pretože sa môžu meniť informácie o dodávateľoch (napr. názov firmy), pričom nie je potrebné uchovávať historické záznamy.
  ```sql
