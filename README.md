@@ -45,3 +45,27 @@ Navrhnutý bol **hviezdicový model (star schema)**, pre efektívnu analýzu kde
   <br>
   <em>Obrázok 2 Schéma hviezdy pre AmazonBooks</em>
 </p>
+
+---
+## **3. ETL proces v Snowflake**
+ETL proces pozostával z troch hlavných fáz: `extrahovanie` (Extract), `transformácia` (Transform) a `načítanie` (Load). Tento proces bol implementovaný v Snowflake s cieľom pripraviť zdrojové dáta zo staging vrstvy do viacdimenzionálneho modelu vhodného na analýzu a vizualizáciu.
+
+---
+### **3.1 Extract (Extrahovanie dát)**
+
+Dáta vo formáte .csv boli do Snowflake nahraté cez interné stage úložisko s názvom my_stage, ktoré bolo vytvorené pomocou:
+
+```sql
+CREATE OR REPLACE STAGE my_stage;
+```
+
+Odtiaľ boli importované do staging tabuliek pre jednotlivé entity, ako sú produkty, kategórie či dodávatelia, využitím príkazu COPY INTO. Príklad:
+
+```sql
+COPY INTO products_staging
+FROM @my_stage/products.csv
+FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '"' SKIP_HEADER = 1);
+```
+
+---
+### **3.2 Transform (Transformácia dát)**
