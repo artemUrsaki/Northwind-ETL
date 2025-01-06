@@ -6,13 +6,14 @@
 Cieľom semestrálneho projektu je analyzovať dáta týkajúce sa zákazníkov, produktov a objednávok. Táto analýza umožňuje identifikovať obchodné trendy, najpredávanejšie produkty a správanie zákazníkov.
 </p>
 <p>
-Zdrojové dáta pochádzajú z Kaggle datasetu dostupného <a href="https://www.kaggle.com/datasets/cleveranjosqlik/csv-northwind-database">tu</a>. Dataset obsahuje sedem hlavných tabuliek:
+Databáza obsahuje osem tabuliek:
 </p>
 <ul>
   <li><code>categories</code></li>
   <li><code>products</code></li>
   <li><code>suppliers</code></li>
   <li><code>orders</code></li>
+  <li><code>ordersdetails</code></li>
   <li><code>shippers</code></li>
   <li><code>employees</code></li>
   <li><code>customers</code></li>
@@ -25,7 +26,7 @@ Zdrojové dáta pochádzajú z Kaggle datasetu dostupného <a href="https://www.
 <p align="center">
   <img src="erd_schema.png" alt="ERD Schema">
   <br>
-  <em>Obrázok 1 Entitno-relačná schéma AmazonBooks</em>
+  <em>Obrázok 1 Entitno-relačná schéma Northwind</em>
 </p>
 
 ---
@@ -34,16 +35,14 @@ Zdrojové dáta pochádzajú z Kaggle datasetu dostupného <a href="https://www.
 Navrhnutý bol **hviezdicový model (star schema)**, pre efektívnu analýzu kde centrálny bod predstavuje faktová tabuľka **`fact_orderdetails`**, ktorá  je prepojená s nasledujúcimi dimenziami:
 - **`dim_products`**: Obsahuje podrobné informácie o produktoch (name, category, supplier, country, city).
 - **`dim_shippers`**: Obsahuje údaje o zasielateľoch (shipper name).
-- **`dim_employees`**: Obsahuje údaje o zamestnancoch (first name, last name, year of birth).
+- **`dim_employees`**: Obsahuje údaje o zamestnancoch (full name, year of birth).
 - **`dim_customers`**: Obsahuje demografické údaje o zákazníkoch (name, city, country).
-- **`dim_date`**: Zahrňuje informácie o dátumoch objednavok (deň, mesiac, rok, štvrťrok).
-
-Štruktúra hviezdicového modelu je znázornená na diagrame nižšie. Diagram ukazuje prepojenia medzi faktovou tabuľkou a dimenziami, čo zjednodušuje pochopenie a implementáciu modelu.
+- **`dim_date`**: Obsahuje informácie o dátumoch objednavok (deň, mesiac, rok, štvrťrok).
 
 <p align="center">
   <img src="star_schema.png" alt="Star Schema">
   <br>
-  <em>Obrázok 2 Schéma hviezdy pre AmazonBooks</em>
+  <em>Obrázok 2 Schéma hviezdy pre Northwind</em>
 </p>
 
 ---
@@ -59,12 +58,27 @@ Dáta vo formáte .csv boli do Snowflake nahraté cez interné stage úložisko 
 CREATE OR REPLACE STAGE my_stage;
 ```
 
-Odtiaľ boli importované do staging tabuliek pre jednotlivé entity, ako sú produkty, kategórie či dodávatelia, využitím príkazu COPY INTO. Príklad:
+Odtiaľ boli importované do staging tabuliek pre jednotlivé entity, ako sú produkty, kategórie či dodávatelia, využitím príkazu `COPY INTO`. Príklad:
 
 ```sql
 COPY INTO products_staging
 FROM @my_stage/products.csv
 FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '"' SKIP_HEADER = 1);
+```
+
+Príklad vytvorenia tabuľky pre ďalší import údajov do nej:
+
+```sql
+CREATE TABLE products_staging (
+    ProductID INT PRIMARY KEY,
+    ProductName VARCHAR(50),
+    SupplierID INT,
+    CategoryID INT,
+    FOREIGN KEY (SupplierID) REFERENCES suppliers_staging(SupplierID),
+    FOREIGN KEY (CategoryID) REFERENCES categories_staging(CategoryID),
+    Unit VARCHAR(25),
+    Price DECIMAL(10,0)
+);
 ```
 
 ---
@@ -89,7 +103,7 @@ JOIN categories_staging c ON p.CategoryID = c.CategoryID
 JOIN suppliers_staging s ON p.SupplierID = s.SupplierID;
 ```
 
-`dim_shippers` obsahuje jedinečné informácie o zasielateľoch, vrátane ich identifikátorov a názvov. Pri transformacii tabulky `shippers_staging` bol vynechany stĺpec `phone`. Typ dimenzie: **SCD0**. Tento typ bol zvolený, pretože údaje o zasielateľoch, ako sú ich názvy, sa považujú za nemenné a nie je potrebné sledovať historické zmeny.
+`dim_shippers` obsahuje jedinečné informácie o zasielateľoch, konkrétne ich názvy. Pri transformacii tabulky `shippers_staging` bol vynechany stĺpec `phone`. Typ dimenzie: **SCD1**. Tento typ bol zvolený, pretože údaje o zasielateľoch, ako sú ich názvy, sa môžu meniť a nie je potrebné sledovať historické zmeny.
 ```sql
 CREATE TABLE dim_shippers AS
 SELECT DISTINCT
@@ -98,7 +112,7 @@ SELECT DISTINCT
 FROM shippers_staging s;
 ```
 
-`dim_employees` obsahuje údaje o zamestnancoch, ako sú ich mená, priezviská a rok narodenia. Pri transformacii tabulky `employees_staging` boli vynechané stĺpce `photo` a `note`. Typ dimenzie: **SCD1**. Tento typ bol zvolený, pretože údaje o zamestnancoch, ako sú mená, sa môžu meniť (napr. v prípade zmeny mena), ale historické záznamy nie sú potrebné.
+`dim_employees` obsahuje údaje o zamestnancoch, ako sú ich mená, priezviská a rok narodenia. Pri transformacii tabulky `employees_staging` boli vynechané stĺpce `photo` a `note`. Typ dimenzie: **SCD1**. Tento typ bol zvolený, pretože údaje o zamestnancoch, ako sú mená, sa môžu meniť, ale historické záznamy nie sú potrebné.
 ```sql
 CREATE TABLE dim_employees AS
 SELECT DISTINCT
@@ -175,7 +189,7 @@ DROP TABLE IF EXISTS orderdetails_staging;
 DROP TABLE IF EXISTS customers_staging;
 ```
 
-ETL proces v Snowflake transformoval údaje z `.csv` formátu do hviezdicového modelu, ktorý zahŕňal čistenie, obohacovanie a reorganizáciu dát. Výsledný model umožňuje podrobnú analýzu predajov, objednávok a interakcií so zákazníkmi, čo slúži ako základ pre reporty a vizualizácie.
+ETL proces v Snowflake transformoval údaje z `.csv` formátu do hviezdicového modelu, ktorý zahŕňal čistenie, obohacovanie a reorganizáciu dát. Výsledný model umožňuje podrobnú analýzu predajov, objednávok a údajov o zákazníkoch, čo slúži ako základ pre štatistiku a vizualizácie.
 
 ---
 ## **4 Vizualizácia dát**
@@ -192,6 +206,7 @@ ETL proces v Snowflake transformoval údaje z `.csv` formátu do hviezdicového 
 
 <p align="center">
   <img src="graphs/graph_1.png" alt="Graph 1">
+  <br>
   <em>Obrázok 4 Graf 1</em>
 </p>
 
@@ -213,6 +228,7 @@ Z grafu vidíme, že najpredávanejšou kategóriou je  `Dairy Products` s **260
 
 <p align="center">
   <img src="graphs/graph_2.png" alt="Graph 2">
+  <br>
   <em>Obrázok 5 Graf 2</em>
 </p>
 
@@ -234,6 +250,7 @@ Z údajov v grafe môžeme urobiť záver, že ceny tovarov ku koncu roka sa zv�
 
 <p align="center">
   <img src="graphs/graph_3.png" alt="Graph 3">
+  <br>
   <em>Obrázok 6 Graf 3</em>
 </p>
 
@@ -252,6 +269,7 @@ Z údajov v grafe môŽeme vidieť, že najväčším dodávateĺom `Aux joyeux 
 
 <p align="center">
   <img src="graphs/graph_3_table.png" alt="Graph 3">
+  <br>
   <em>Obrázok 7 Údaje z Grafu 3.</em>
 </p>
 
@@ -262,6 +280,7 @@ Z obrázku si môžeme všimnúť, že rozdiel v hodnote tržieb medzi najväč�
 
 <p align="center">
   <img src="graphs/graph_4.png" alt="Graph 4">
+  <br>
   <em>Obrázok 8 Graf 4</em>
 </p>
 
@@ -283,6 +302,7 @@ LIMIT 10;
 
 <p align="center">
   <img src="graphs/graph_5.png" alt="Graph 5">
+  <br>
   <em>Obrázok 9 Graf 5</em>
 </p>
 
