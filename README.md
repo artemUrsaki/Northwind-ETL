@@ -249,7 +249,7 @@ Z údajov v grafe môžeme urobiť záver, že ceny tovarov ku koncu roka sa zv�
 ### **Graf 3: Najväčší dodávatelia podľa predaja**
 
 <p align="center">
-  <img src="graphs/graph_3.png" alt="Graph 3">
+  <img src="graphs/graph_4.png" alt="Graph 3">
   <br>
   <em>Obrázok 6 Graf 3</em>
 </p>
@@ -279,7 +279,7 @@ Z obrázku si môžeme všimnúť, že rozdiel v hodnote tržieb medzi najväč�
 ### **Graf 4: 10 Najväčších zákazníkov podľa hodnoty objednávok**
 
 <p align="center">
-  <img src="graphs/graph_4.png" alt="Graph 4">
+  <img src="graphs/graph_3.png" alt="Graph 4">
   <br>
   <em>Obrázok 8 Graf 4</em>
 </p>
