@@ -180,7 +180,7 @@ ETL proces v Snowflake transformoval údaje z `.csv` formátu do hviezdicového 
 ---
 ## **4 Vizualizácia dát**
 
-# Bolo navrhnutých `5 vizualizácií`:
+### Bolo navrhnutých `5 vizualizácií`:
 <p align="center">
   <img src="dashboard.png" alt="Dashboard">
   <br>
@@ -206,7 +206,7 @@ GROUP BY p.ProductCategory
 ORDER BY quantity DESC;
 ```
 
-Z grafu vidíme, že najpredávanejšou kategóriou je  **Dairy Products** s *2601* predanými produktmi. Najmenšie množstvo produktov sa predalo v kategórii **Produce** - *715* kusov.
+Z grafu vidíme, že najpredávanejšou kategóriou je  `Dairy Products` s **2601** predanými produktmi. Najmenšie množstvo produktov sa predalo v kategórii `Produce` - **715** kusov.
 
 ---
 ### **Graf 2: Priemerné ceny produktov v jednotlivých mesiacoch roku 1996**
@@ -227,7 +227,7 @@ GROUP BY d.month
 ORDER BY d.month;
 ```
 
-Z údajov v grafe môžeme urobiť záver, že ceny tovarov ku koncu roka sa zvýšili. Najnižšia priemerná cena tovarov bola v **7.** mesiaci alebo v **júli** s hodnotou **25,7**. Najvyššia priemerná cena bola zaznamenaná v **12**. mesiaci - **decembri**, konkrétne **34,8**.
+Z údajov v grafe môžeme urobiť záver, že ceny tovarov ku koncu roka sa zvýšili. Najnižšia priemerná cena tovarov bola v **7.** mesiaci alebo v **júli** s hodnotou **25,7**. Najvyššia priemerná cena bola zaznamenaná v **11**. mesiaci - **novembri**, konkrétne **34,8**.
 
 ---
 ### **Graf 3: Najväčší dodávatelia podľa predaja**
