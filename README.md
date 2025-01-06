@@ -1,4 +1,4 @@
-# ETL proces datasetu Northwind
+  # ETL proces datasetu Northwind
 <p>Tento repozitár obsahuje implementáciu ETL procesu v Snowflake pre analýzu dát z databázy <b>NorthWind</b>. Projekt sa zameriava na skúmanie obchodného správania zákazníkov a ich nákupných preferencií na základe údajov o objednávkach, produktoch a zákazníkoch. Výsledný dátový model umožňuje multidimenzionálnu analýzu a vizualizáciu kľúčových obchodných metrík.</p>
 <hr>
 <p>1. Úvod a popis zdrojových dát</p>
@@ -159,3 +159,147 @@ JOIN dim_customers c ON o.CustomerID = c.CustomerID
 JOIN dim_shippers s ON o.ShipperID = s.ShipperID
 JOIN dim_date d ON CAST(o.OrderDate as DATE) = d.date;
 ```
+
+---
+### **3.3 Load (Načítanie dát)**
+
+Po úspešnom vytvorení dimenzií a faktovej tabuľky boli dáta nahraté do finálnej štruktúry. Na záver boli staging tabuľky odstránené, aby sa optimalizovalo využitie úložiska:
+```sql
+DROP TABLE IF EXISTS products_staging;
+DROP TABLE IF EXISTS categories_staging;
+DROP TABLE IF EXISTS suppliers_staging;
+DROP TABLE IF EXISTS orders_staging;
+DROP TABLE IF EXISTS shippers_staging;
+DROP TABLE IF EXISTS employees_staging;
+DROP TABLE IF EXISTS orderdetails_staging;
+DROP TABLE IF EXISTS customers_staging;
+```
+
+ETL proces v Snowflake transformoval údaje z `.csv` formátu do hviezdicového modelu, ktorý zahŕňal čistenie, obohacovanie a reorganizáciu dát. Výsledný model umožňuje podrobnú analýzu predajov, objednávok a interakcií so zákazníkmi, čo slúži ako základ pre reporty a vizualizácie.
+
+---
+## **4 Vizualizácia dát**
+
+# Bolo navrhnutých `5 vizualizácií`:
+<p align="center">
+  <img src="dashboard.png" alt="Dashboard">
+  <br>
+  <em>Obrázok 3 Dashboard Northwind datasetu</em>
+</p>
+
+---
+### **Graf 1: Kategórie produktov s najvyšším počtom predaných kusov**
+
+<p align="center">
+  <img src="graphs/graph_1.png" alt="Graph 1">
+  <em>Obrázok 4 Graf 1</em>
+</p>
+
+**Tento graf zobrazuje predané množstvo produktov podľa kategórií.**
+
+```sql
+SELECT p.ProductCategory, 
+       SUM(od.ProductQuantity) AS quantity
+FROM fact_orderdetails od
+JOIN dim_products p ON od.ProductID = p.ProductID
+GROUP BY p.ProductCategory
+ORDER BY quantity DESC;
+```
+
+Z grafu vidíme, že najpredávanejšou kategóriou je  **Dairy Products** s *2601* predanými produktmi. Najmenšie množstvo produktov sa predalo v kategórii **Produce** - *715* kusov.
+
+---
+### **Graf 2: Priemerné ceny produktov v jednotlivých mesiacoch roku 1996**
+
+<p align="center">
+  <img src="graphs/graph_2.png" alt="Graph 2">
+  <em>Obrázok 5 Graf 2</em>
+</p>
+
+**Tento graf zobrazuje predané množstvo produktov podľa kategórií.**
+
+```sql
+SELECT d.month, AVG(od.ProductPrice) AS price
+FROM fact_orderdetails od
+JOIN dim_date d ON od.DateID = d.DateID
+WHERE d.year = '1996'
+GROUP BY d.month
+ORDER BY d.month;
+```
+
+Z údajov v grafe môžeme urobiť záver, že ceny tovarov ku koncu roka sa zvýšili. Najnižšia priemerná cena tovarov bola v **7.** mesiaci alebo v **júli** s hodnotou **25,7**. Najvyššia priemerná cena bola zaznamenaná v **12**. mesiaci - **decembri**, konkrétne **34,8**.
+
+---
+### **Graf 3: Najväčší dodávatelia podľa predaja**
+
+<p align="center">
+  <img src="graphs/graph_3.png" alt="Graph 3">
+  <em>Obrázok 6 Graf 3</em>
+</p>
+
+**Zobrazuje dodávateľov zoradených podľa celkovej hodnoty tržieb.**
+
+```sql
+SELECT p.SupplierName, 
+       SUM(od.ProductQuantity * od.ProductPrice) AS sales
+FROM fact_orderdetails od
+JOIN dim_products p ON od.ProductID = p.ProductID
+GROUP BY p.SupplierName
+ORDER BY sales DESC;
+```
+
+Z údajov v grafe môŽeme vidieť, že najväčším dodávateĺom `Aux joyeux ecclésiastiques`, ktorý veľmi dominuje nad ostatnými dodávateľmi na trhu:
+
+<p align="center">
+  <img src="graphs/graph_3_table.png" alt="Graph 3">
+  <em>Obrázok 7 Údaje z Grafu 3.</em>
+</p>
+
+Z obrázku si môžeme všimnúť, že rozdiel v hodnote tržieb medzi najväčším a druhým najväčším dodavateľmi je **30291**. Najmenším dodávateľom je `Refrescos Americanas LTDA` z hodnotou **790**.
+
+---
+### **Graf 4: 10 Najväčších zákazníkov podľa hodnoty objednávok**
+
+<p align="center">
+  <img src="graphs/graph_4.png" alt="Graph 4">
+  <em>Obrázok 8 Graf 4</em>
+</p>
+
+**Tento graf zobrazuje 10 zákazníkov s najvyššou celkovou cenou všetkých svojich objednávok.**
+
+```sql
+SELECT 
+    c.CustomerName, 
+    SUM(od.ProductQuantity * od.ProductPrice) AS sales
+FROM fact_orderdetails od
+JOIN dim_customers c ON od.CustomerID = c.CustomerID
+GROUP BY c.CustomerID, c.CustomerName
+ORDER BY sales DESC
+LIMIT 10;
+```
+
+---
+### **Graf 5: Zamestnanci s najväčším podielom na predaji**
+
+<p align="center">
+  <img src="graphs/graph_5.png" alt="Graph 5">
+  <em>Obrázok 9 Graf 5</em>
+</p>
+
+**Graf zobrazuje tržby generované jednotlivými zamestnancami.**
+
+```sql
+SELECT 
+    e.FullName AS EmployeeName,
+    SUM(od.ProductQuantity * od.ProductPrice) AS sales
+FROM fact_orderdetails od
+JOIN dim_employees e ON od.EmployeeID = e.EmployeeID
+GROUP BY e.EmployeeID, e.FullName
+ORDER BY sales;
+```
+
+Graf umožňuje sledovať výkonnosť zamestnancov a na základe tejto informácie môžeme odhaliť, ktorí zamestnanci sú najúspešnejší. Najlepší pracovník za celý čas je `Margaret Peacock` s hodnotou tržieb **105926**.
+
+---
+
+**Autor:** Artem Ursaki
